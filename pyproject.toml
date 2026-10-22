@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "evalbar"
+version = "0.1.0.dev0"
+description = "Small LLM eval and tracing harness: run any pipeline over a test set, trace tokens/latency/cost per case, score it, and gate CI on quality drops."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Milind Bansal" }]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    # 1.82.7 and 1.82.8 were compromised releases on PyPI (March 2026).
+    "litellm>=1.80,!=1.82.7,!=1.82.8",
+    "rich>=13",
+    "pyyaml>=6",
+    "jsonschema>=4.20",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+evalbar = "evalbar.cli:main"
+
+[project.urls]
+Repository = "https://github.com/MilindDevX/evalbar"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/evalbar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

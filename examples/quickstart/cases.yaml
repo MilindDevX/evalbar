@@ -1,0 +1,13 @@
+cases:
+  - id: france
+    input: {country: France}
+    expected: {city: Paris, answer: Paris}
+  - id: japan
+    input: {country: Japan}
+    expected: {city: Tokyo, answer: Tokyo}
+  - id: kenya
+    input: {country: Kenya}
+    expected: {city: Nairobi, answer: Nairobi}
+  - id: atlantis
+    input: {country: Atlantis}
+    expected: {city: Poseidonia, answer: Poseidonia}
