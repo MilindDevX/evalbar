@@ -5,11 +5,12 @@ Small eval and tracing harness for LLM pipelines. Point it at any Python functio
 - **Any callable**: an LLM call, a RAG (retrieval-augmented generation) chain or an agent; evalbar only sees `pipeline(input) -> output`.
 - **Plain datasets**: JSONL (one JSON object per line) or YAML.
 - **Traces**: tokens, latency and list-price cost per case through [LiteLLM](https://github.com/BerriAI/litellm), so any provider works; tool calls via a decorator.
-- **Deterministic scorers first**: exact match, contains, regex, JSON-schema validity. LLM-as-judge and retrieval recall@k come in M3.
+- **Scorers**: exact match, contains, regex, JSON-schema validity, retrieval recall@k, and an LLM-as-judge with a rubric whose own cost is reported apart from the pipeline's.
 - **Diffs and CI gates**: `evalbar diff base.json head.json --fail-on-drop 0.02` names the regressed cases and exits 1 when quality drops (or cost rises past `--max-cost-increase`).
+- **Reports**: a terminal table, a JSON run file, and a single self-contained HTML page (`evalbar html`).
 - **Honest numbers**: a crashed case fails every scorer it applies to instead of disappearing; an unknown price is reported as unknown, never as $0.
 
-Status: M1 (core harness) and M2 (diff + CI gate) of the [roadmap](docs/roadmap.md) are done; not yet on PyPI. Design and comparison with promptfoo, DeepEval and Ragas: [docs/design.md](docs/design.md).
+Status: M1–M3 of the [roadmap](docs/roadmap.md) are done; version 0.1.0 is ready to release but not yet on PyPI. Design and comparison with promptfoo, DeepEval and Ragas: [docs/design.md](docs/design.md).
 
 ## Quickstart
 
@@ -18,6 +19,8 @@ git clone https://github.com/MilindDevX/evalbar && cd evalbar
 uv venv --python 3.12 && uv pip install -e ".[dev]"
 .venv/bin/evalbar run examples/quickstart/eval.py
 ```
+
+After the 0.1.0 release: `pip install evalbar`.
 
 The quickstart needs no API key (LiteLLM's `mock_response` stands in for the model) and prints a score table, a usage table and the failing case with its reason. The run is saved under `runs/`; re-print it with `evalbar show runs/<file>.json`.
 
@@ -60,6 +63,7 @@ my_eval = Eval(
 evalbar run my_eval.py --out runs/baseline.json   # add :name when the file defines several Evals
 evalbar run my_eval.py --limit 3                  # smoke test before spending quota
 evalbar show runs/baseline.json
+evalbar html runs/baseline.json                   # writes runs/baseline.html
 ```
 
 A case in `cases.jsonl`:
@@ -71,6 +75,32 @@ A case in `cases.jsonl`:
 A scorer is any `(output, case) -> Score | None` function. Built-ins return `None` when the case has no expectation for them (for example `contains("secondary_themes")` on a case without `expected.secondary_themes`), so every scorer is averaged only over the cases it applies to.
 
 `evalbar run` loads `.env` from the current folder if present (variables already set in the shell win); see `.env.example`.
+
+## Retrieval and LLM-as-judge
+
+```python
+from evalbar.scorers import llm_judge, recall_at_k
+
+recall_at_k(k=3)                  # share of expected["relevant"] ids in output["retrieved"][:3]
+llm_judge(
+    "The answer is correct, supported by the context, and invents nothing.",
+    model="groq/openai/gpt-oss-120b",
+    pass_threshold=0.7,
+    expects="judge_me",           # optional: only cases that carry this expected key
+)
+```
+
+The judge sees the rubric, the case input, the expected values and the output, and must reply `{"score": 0..1, "reason": "..."}`. Its calls are traced with role `judge`, so the report shows judge cost separately and `cost` stays the cost of the system under test. A judge that errors or replies with something unparseable fails the case with a `judge error` reason instead of being skipped.
+
+[`examples/rag/`](examples/rag) is a tiny RAG pipeline: a keyword retriever over 8 documents of a fictional notes app, and an answer model. It runs offline by default; `EVALBAR_LIVE=1` uses Groq for answers and for the judge. Measured 2026-10-23, 8 questions:
+
+| scorer | pass rate | what it caught |
+|---|---|---|
+| recall@2 | 7/8 | `money-back` ("Can I get my money back?") shares no words with the refund document |
+| contains (expected fact in answer) | 4/8 | the same miss, plus 3 correct but terse answers ("Yes, the Business plan supports SSO with Okta." lacks "SAML") |
+| judge (answered, faithful, threshold 0.7) | 7/8 | only `money-back`, where the model answered "I don't know" |
+
+The keyword check penalised correct answers; the judge and recall@k agreed on the one real failure. The judge cost $0.00085, about 2× the pipeline's own $0.00039 for these 8 cases. The judge here is the same model as the pipeline, which can bias it toward its own answers; set `EVALBAR_JUDGE_MODEL` to use a different one.
 
 ## Compare runs and gate CI
 
@@ -173,6 +203,10 @@ Usage
 │ LLM latency p50 / p95  │ 0.80s / 1.63s │
 └────────────────────────┴───────────────┘
 ```
+
+## Releasing (maintainer)
+
+`.github/workflows/release.yml` builds, runs `twine check --strict` and publishes to PyPI with trusted publishing when a `v*` tag matching `pyproject.toml`'s version is pushed. One-time setup: add a pending publisher on pypi.org (project `evalbar`, owner `MilindDevX`, repo `evalbar`, workflow `release.yml`, environment `pypi`) and create the `pypi` environment in the repo settings.
 
 ## Development
 

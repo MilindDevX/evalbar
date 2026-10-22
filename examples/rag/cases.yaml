@@ -1,0 +1,27 @@
+# Questions about a fictional notes app. `relevant` lists the document ids an ideal
+# retriever returns; `must_include` is a fact the answer has to contain.
+cases:
+  - id: api-limit
+    input: {question: "How many requests per minute does the API allow?"}
+    expected: {relevant: [api_limits], must_include: "60"}
+  - id: export-formats
+    input: {question: "Which formats can I export notes to?"}
+    expected: {relevant: [export], must_include: "Markdown"}
+  - id: sso-okta
+    input: {question: "Does the Business plan support SSO with Okta?"}
+    expected: {relevant: [sso], must_include: "SAML"}
+  - id: money-back
+    input: {question: "Can I get my money back after buying?"}
+    expected: {relevant: [refunds], must_include: "30 days"}
+  - id: deleted-notes
+    input: {question: "What happens to notes I delete?"}
+    expected: {relevant: [retention], must_include: "trash"}
+  - id: no-internet
+    input: {question: "Does the app work without internet?"}
+    expected: {relevant: [offline], must_include: "sync"}
+  - id: pro-price
+    input: {question: "How much does Pro cost per month?"}
+    expected: {relevant: [pricing], must_include: "$8"}
+  - id: android
+    input: {question: "Is there an Android app?"}
+    expected: {relevant: [mobile], must_include: "Android 10"}

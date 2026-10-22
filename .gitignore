@@ -11,3 +11,4 @@ build/
 !.env.example
 runs/
 .DS_Store
+.claude/

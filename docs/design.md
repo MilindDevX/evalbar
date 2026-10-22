@@ -78,6 +78,7 @@ Building blocks:
 | `runner` | Runs the pipeline per case inside a fresh trace; captures exceptions as case errors (an error fails every scorer rather than disappearing); applies rate limiting. Returns a `RunResult`. |
 | `report` | Aggregates: mean score and pass rate per scorer, error count, total tokens and cost, latency p50/p95. Renders a `rich` terminal table; writes and reads the JSON run file. |
 | `cli` | `run`, `show` (M1), `diff` (M2), `html` (M3). |
+| `html` | One self-contained page per run: summary, scores, every case with input, expected, output, scores and trace. Everything escaped, no scripts, no external assets. |
 
 The JSON run file is versioned (`"schema_version": 1`) because `diff` and CI depend on it staying readable across releases.
 
@@ -87,8 +88,9 @@ The JSON run file is versioned (`"schema_version": 1`) because `diff` and CI dep
 2. **Scores are numbers in 0..1 plus a pass flag.** Deterministic scorers return 0 or 1; a judge can return a fraction. Aggregation is the same for both.
 3. **Errors are first-class.** A crashed case counts as a failure for every scorer and is listed in the report. Silently dropping failed cases inflates accuracy, which is the most common way eval numbers lie.
 4. **Cost comes from the price LiteLLM computed at call time.** `litellm.completion_cost(response)` re-derives the provider from the response, and that can go wrong. Found on 2026-10-22: Groq returns `model="openai/gpt-oss-120b"` with no provider hint, so the lookup goes to OpenAI and raises `ModelNotMappedError`, even when the full `groq/...` model name is passed. evalbar reads `response._hidden_params["response_cost"]` first (set while LiteLLM still knew the provider) and only then falls back to `completion_cost()`. This is a candidate upstream LiteLLM issue next to the planned `custom_pricing` PR.
-5. **Cost is "list price".** Cost uses LiteLLM's price table even when the account is on a free tier, so two runs are comparable in money terms. The report says when a model has no known price instead of printing 0.
-6. **No config language.** The eval is a Python file. Python already has variables, imports and functions; YAML configs end up reinventing them.
+5. **Judge calls are tagged, not mixed in.** An LLM-as-judge scorer makes LLM calls during scoring. The runner re-opens the case trace with role `judge` while scorers run, so those calls are kept and reported (judge cost, judge calls) but never added to the pipeline's cost or tokens. Otherwise a stricter judge would make the system under test look more expensive.
+6. **Cost is "list price".** Cost uses LiteLLM's price table even when the account is on a free tier, so two runs are comparable in money terms. The report says when a model has no known price instead of printing 0.
+7. **No config language.** The eval is a Python file. Python already has variables, imports and functions; YAML configs end up reinventing them.
 
 ## How it compares
 

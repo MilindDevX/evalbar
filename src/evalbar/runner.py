@@ -161,6 +161,23 @@ def _run_case(evaluation: Eval, case: Case) -> CaseResult:
             error = f"{type(exc).__name__}: {exc}"
     latency_s = time.perf_counter() - started
 
+    with trace.recording_as("judge"):
+        scores = _score(evaluation, case, output, error)
+
+    return CaseResult(
+        case_id=case.id,
+        input=case.input,
+        expected=case.expected,
+        output=output,
+        error=error,
+        latency_s=latency_s,
+        trace=trace,
+        scores=scores,
+        metadata=case.metadata,
+    )
+
+
+def _score(evaluation: Eval, case: Case, output: Any, error: str | None) -> list[Score]:
     scores: list[Score] = []
     for scorer in evaluation.scorers:
         if error is not None:
@@ -175,18 +192,7 @@ def _run_case(evaluation: Eval, case: Case) -> CaseResult:
         if score is not None:
             # Reports group by scorer name, so a custom scorer cannot rename its scores.
             scores.append(replace(score, name=scorer.name))
-
-    return CaseResult(
-        case_id=case.id,
-        input=case.input,
-        expected=case.expected,
-        output=output,
-        error=error,
-        latency_s=latency_s,
-        trace=trace,
-        scores=scores,
-        metadata=case.metadata,
-    )
+    return scores
 
 
 def _now() -> str:

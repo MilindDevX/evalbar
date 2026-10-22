@@ -36,6 +36,8 @@ class Summary:
     completion_tokens: int
     cost_usd: float
     n_unpriced_cases: int
+    judge_calls: int
+    judge_cost_usd: float
     latency_p50_s: float
     latency_p95_s: float
     llm_latency_p50_s: float
@@ -53,19 +55,21 @@ def summarize(run: RunResult) -> Summary:
         )
     latencies = sorted(case.latency_s for case in run.cases)
     # Time spent inside model calls only: excludes rate-limit waits and local work.
-    llm_latencies = sorted(case.trace.llm_latency_s for case in run.cases if case.trace.llm_calls)
+    llm_latencies = sorted(case.trace.llm_latency_s for case in run.cases if case.trace.pipeline_calls)
     return Summary(
         name=run.name,
         n_cases=len(run.cases),
         n_errors=sum(case.error is not None for case in run.cases),
         scorers=scorers,
-        llm_calls=sum(len(case.trace.llm_calls) for case in run.cases),
+        llm_calls=sum(len(case.trace.pipeline_calls) for case in run.cases),
         prompt_tokens=sum(case.trace.prompt_tokens for case in run.cases),
         completion_tokens=sum(case.trace.completion_tokens for case in run.cases),
-        cost_usd=sum(call.cost_usd or 0.0 for case in run.cases for call in case.trace.llm_calls),
+        cost_usd=sum(call.cost_usd or 0.0 for case in run.cases for call in case.trace.pipeline_calls),
         n_unpriced_cases=sum(
-            1 for case in run.cases if case.trace.llm_calls and case.trace.cost_usd is None
+            1 for case in run.cases if case.trace.pipeline_calls and case.trace.cost_usd is None
         ),
+        judge_calls=sum(len(case.trace.judge_calls) for case in run.cases),
+        judge_cost_usd=sum(call.cost_usd or 0.0 for case in run.cases for call in case.trace.judge_calls),
         latency_p50_s=percentile(latencies, 0.50),
         latency_p95_s=percentile(latencies, 0.95),
         llm_latency_p50_s=percentile(llm_latencies, 0.50),
@@ -100,6 +104,9 @@ def report_renderable(run: RunResult, max_failures: int = 15) -> Group:
     usage.add_row("completion tokens", f"{summary.completion_tokens:,}")
     usage.add_row("cost (list price)", format_cost(summary.cost_usd))
     usage.add_row("cost per case", format_cost(summary.cost_usd / per_case))
+    if summary.judge_calls:
+        usage.add_row("judge calls", str(summary.judge_calls))
+        usage.add_row("judge cost (not in cost above)", format_cost(summary.judge_cost_usd))
     usage.add_row("case latency p50 / p95", f"{summary.latency_p50_s:.2f}s / {summary.latency_p95_s:.2f}s")
     usage.add_row("LLM latency p50 / p95", f"{summary.llm_latency_p50_s:.2f}s / {summary.llm_latency_p95_s:.2f}s")
     parts.append(usage)

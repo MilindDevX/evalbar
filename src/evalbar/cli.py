@@ -1,4 +1,4 @@
-"""Command line: `evalbar run`, `evalbar show` and `evalbar diff`."""
+"""Command line: `evalbar run`, `show`, `diff` and `html`."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 from rich.console import Console
 
 from .diff import check_gates, diff_renderable, diff_runs, render_markdown
+from .html import render_html
 from .report import load_run, report_renderable, save_run
 from .runner import CaseResult, Eval, run
 
@@ -36,6 +37,10 @@ def main(argv: list[str] | None = None) -> int:
     show_cmd = commands.add_parser("show", help="print the report for a saved run file")
     show_cmd.add_argument("run_file")
 
+    html_cmd = commands.add_parser("html", help="write a self-contained HTML report for a run file")
+    html_cmd.add_argument("run_file")
+    html_cmd.add_argument("--out", help="HTML file to write (default: the run file with .html)")
+
     diff_cmd = commands.add_parser("diff", help="compare two run files; exit 1 when a gate fails")
     diff_cmd.add_argument("base", help="baseline run file (e.g. committed on main)")
     diff_cmd.add_argument("head", help="new run file")
@@ -55,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run(args, console)
         if args.command == "diff":
             return _diff(args, console)
+        if args.command == "html":
+            return _html(args, console)
         return _show(args, console)
     except UsageError as exc:
         print(f"evalbar: {exc}", file=sys.stderr)
@@ -88,6 +95,17 @@ def _show(args: argparse.Namespace, console: Console) -> int:
     if not path.is_file():
         raise UsageError(f"run file not found: {path}")
     console.print(report_renderable(load_run(path)))
+    return 0
+
+
+def _html(args: argparse.Namespace, console: Console) -> int:
+    path = Path(args.run_file)
+    if not path.is_file():
+        raise UsageError(f"run file not found: {path}")
+    out = Path(args.out) if args.out else path.with_suffix(".html")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(render_html(load_run(path)), encoding="utf-8")
+    console.print(f"wrote {out}")
     return 0
 
 

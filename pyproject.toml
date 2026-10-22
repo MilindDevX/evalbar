@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "evalbar"
-version = "0.1.0.dev0"
+version = "0.1.0"
 description = "Small LLM eval and tracing harness: run any pipeline over a test set, trace tokens/latency/cost per case, score it, and gate CI on quality drops."
 readme = "README.md"
 license = "MIT"

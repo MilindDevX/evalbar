@@ -237,7 +237,7 @@ def _tokens_per_case(cases: list[CaseResult]) -> float:
 
 
 def _llm_p50(cases: list[CaseResult]) -> float:
-    return percentile(sorted(case.trace.llm_latency_s for case in cases if case.trace.llm_calls), 0.5)
+    return percentile(sorted(case.trace.llm_latency_s for case in cases if case.trace.pipeline_calls), 0.5)
 
 
 def _usage_rows(diff: RunDiff) -> list[tuple[str, str, str, str]]:
