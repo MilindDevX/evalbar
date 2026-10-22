@@ -10,17 +10,23 @@ Small eval and tracing harness for LLM pipelines. Point it at any Python functio
 - **Reports**: a terminal table, a JSON run file, and a single self-contained HTML page (`evalbar html`).
 - **Honest numbers**: a crashed case fails every scorer it applies to instead of disappearing; an unknown price is reported as unknown, never as $0.
 
-Status: M1–M3 of the [roadmap](docs/roadmap.md) are done; version 0.1.0 is ready to release but not yet on PyPI. Design and comparison with promptfoo, DeepEval and Ragas: [docs/design.md](docs/design.md).
+Status: 0.1.0 is on [PyPI](https://pypi.org/project/evalbar/) (Python 3.10+). M1–M4 of the [roadmap](docs/roadmap.md) are done. Design and comparison with promptfoo, DeepEval and Ragas: [docs/design.md](docs/design.md).
+
+## Install
+
+```bash
+pip install evalbar
+```
 
 ## Quickstart
 
+The examples live in this repository:
+
 ```bash
 git clone https://github.com/MilindDevX/evalbar && cd evalbar
-uv venv --python 3.12 && uv pip install -e ".[dev]"
-.venv/bin/evalbar run examples/quickstart/eval.py
+pip install evalbar
+evalbar run examples/quickstart/eval.py
 ```
-
-After the 0.1.0 release: `pip install evalbar`.
 
 The quickstart needs no API key (LiteLLM's `mock_response` stands in for the model) and prints a score table, a usage table and the failing case with its reason. The run is saved under `runs/`; re-print it with `evalbar show runs/<file>.json`.
 
@@ -206,7 +212,7 @@ Usage
 
 ## Releasing (maintainer)
 
-`.github/workflows/release.yml` builds, runs `twine check --strict` and publishes to PyPI with trusted publishing when a `v*` tag matching `pyproject.toml`'s version is pushed. One-time setup: add a pending publisher on pypi.org (project `evalbar`, owner `MilindDevX`, repo `evalbar`, workflow `release.yml`, environment `pypi`) and create the `pypi` environment in the repo settings.
+`.github/workflows/release.yml` builds, runs `twine check --strict` and publishes to PyPI with trusted publishing (no stored token; uploads carry attestations) when a `v*` tag matching `pyproject.toml`'s version is pushed. To release: bump `version` in `pyproject.toml`, merge to `main`, then push the tag (`git tag -a v0.1.1 -m "evalbar 0.1.1" && git push origin v0.1.1`). The PyPI trusted publisher and the tag-restricted `pypi` environment are already set up.
 
 ## Development
 
