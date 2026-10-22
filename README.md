@@ -6,9 +6,10 @@ Small eval and tracing harness for LLM pipelines. Point it at any Python functio
 - **Plain datasets**: JSONL (one JSON object per line) or YAML.
 - **Traces**: tokens, latency and list-price cost per case through [LiteLLM](https://github.com/BerriAI/litellm), so any provider works; tool calls via a decorator.
 - **Deterministic scorers first**: exact match, contains, regex, JSON-schema validity. LLM-as-judge and retrieval recall@k come in M3.
+- **Diffs and CI gates**: `evalbar diff base.json head.json --fail-on-drop 0.02` names the regressed cases and exits 1 when quality drops (or cost rises past `--max-cost-increase`).
 - **Honest numbers**: a crashed case fails every scorer it applies to instead of disappearing; an unknown price is reported as unknown, never as $0.
 
-Status: M1 (core harness) of the [roadmap](docs/roadmap.md). Design and comparison with promptfoo, DeepEval and Ragas: [docs/design.md](docs/design.md).
+Status: M1 (core harness) and M2 (diff + CI gate) of the [roadmap](docs/roadmap.md) are done; not yet on PyPI. Design and comparison with promptfoo, DeepEval and Ragas: [docs/design.md](docs/design.md).
 
 ## Quickstart
 
@@ -71,6 +72,33 @@ A scorer is any `(output, case) -> Score | None` function. Built-ins return `Non
 
 `evalbar run` loads `.env` from the current folder if present (variables already set in the shell win); see `.env.example`.
 
+## Compare runs and gate CI
+
+```bash
+evalbar diff runs/baseline.json runs/head.json                       # report only, exit 0
+evalbar diff runs/baseline.json runs/head.json --fail-on-drop 0.02   # exit 1 if any pass rate drops > 2 points
+evalbar diff runs/baseline.json runs/head.json --fail-on-drop 0 --scorer exact:label --max-cost-increase 0.2
+evalbar diff runs/baseline.json runs/head.json --format markdown >> "$GITHUB_STEP_SUMMARY"
+```
+
+The diff compares only the cases both runs share, so adding or removing cases cannot fake a gain. For each scorer it shows the pass rate before and after and the ids of cases that regressed or got fixed (a case that newly crashes counts as a regression). It also shows cost, tokens and LLM latency per case.
+
+Reversing the FeedbackOS comparison below (production prompt as the baseline, old prompt as the change) is a realistic regression, and the gate catches it:
+
+```text
+$ evalbar diff runs/feedbackos-v2.json runs/feedbackos-v1.json --fail-on-drop 0.02
+FAIL: exact:sentiment dropped 6.0 pts (100.0% -> 94.0%), allowed 2.0; regressed: mixed-01, mixed-02, mixed-03
+FAIL: theme+sentiment dropped 4.0 pts (96.0% -> 92.0%), allowed 2.0; regressed: mixed-01, mixed-02
+FAIL: contains:secondary_themes dropped 100.0 pts (100.0% -> 0.0%), allowed 2.0; regressed: mixed-01, ..., mixed-08
+```
+
+Forward (v1 to v2), the quality gate passes, but `--max-cost-increase 0.10` fails because v2 costs 13% more per item. The job surfaces the trade-off instead of hiding it.
+
+GitHub Actions:
+
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs this repo's tests on Python 3.10–3.13. It also dogfoods the gate: it runs the offline quickstart and diffs it against the committed [`examples/quickstart/baseline.json`](examples/quickstart/baseline.json), so no API key is needed.
+- [`examples/ci/evalbar-gate.yml`](examples/ci/evalbar-gate.yml) is a template to copy into your project. It runs your eval against a real model on pull requests, compares it with a committed baseline, writes the table to the job summary and uploads the run file.
+
 ## First real user: FeedbackOS's feedback classifier
 
 FeedbackOS (Milind's feedback-triage SaaS) classifies customer feedback into a theme (`bug_problem`, `feature_request`, `usability_issue`, `question_support`, `praise`, `other`), a sentiment and a product area with `openai/gpt-oss-120b` on Groq. On 2026-10-12 its prompt changed: v2 added `secondary_themes` (praise inside a complaint is kept) and a stricter "mixed" sentiment rule.
@@ -89,7 +117,7 @@ evalbar run examples/feedbackos/eval.py:v2 --out runs/feedbackos-v2.json
 
 ### Results
 
-Measured 2026-10-22 on Groq, one run per prompt, 50 cases each, 49 LLM calls each (one case is under 5 words and skips the model, as in production). evalbar 0.1.0.dev0, LiteLLM 1.106.2. Raw run files are not committed; regenerate the table with `python examples/feedbackos/compare.py runs/feedbackos-v1.json runs/feedbackos-v2.json`.
+Measured 2026-10-22 on Groq, one run per prompt, 50 cases each, 49 LLM calls each (one case is under 5 words and skips the model, as in production). evalbar 0.1.0.dev0, LiteLLM 1.106.2. Raw run files are not committed; rerun both evals, then `evalbar diff runs/feedbackos-v1.json runs/feedbackos-v2.json --format markdown` regenerates the comparison.
 
 | metric | v1 (single theme) | v2 (production) | change |
 |---|---|---|---|

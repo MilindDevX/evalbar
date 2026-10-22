@@ -66,10 +66,10 @@ def summarize(run: RunResult) -> Summary:
         n_unpriced_cases=sum(
             1 for case in run.cases if case.trace.llm_calls and case.trace.cost_usd is None
         ),
-        latency_p50_s=_percentile(latencies, 0.50),
-        latency_p95_s=_percentile(latencies, 0.95),
-        llm_latency_p50_s=_percentile(llm_latencies, 0.50),
-        llm_latency_p95_s=_percentile(llm_latencies, 0.95),
+        latency_p50_s=percentile(latencies, 0.50),
+        latency_p95_s=percentile(latencies, 0.95),
+        llm_latency_p50_s=percentile(llm_latencies, 0.50),
+        llm_latency_p95_s=percentile(llm_latencies, 0.95),
     )
 
 
@@ -86,7 +86,7 @@ def report_renderable(run: RunResult, max_failures: int = 15) -> Group:
 
     scores = Table(title="Scores", title_justify="left")
     for column in ("scorer", "cases", "passed", "pass rate", "mean"):
-        scores.add_column(column, justify="left" if column == "scorer" else "right")
+        scores.add_column(column, justify="left" if column == "scorer" else "right", no_wrap=True)
     for name, scorer in summary.scorers.items():
         scores.add_row(name, str(scorer.n), str(scorer.passed), f"{scorer.pass_rate:.1%}", f"{scorer.mean:.3f}")
     parts.append(scores)
@@ -158,7 +158,7 @@ def format_cost(usd: float) -> str:
     return f"${usd:.4f}" if usd >= 0.01 or usd == 0 else f"${usd:.6f}"
 
 
-def _percentile(sorted_values: list[float], fraction: float) -> float:
+def percentile(sorted_values: list[float], fraction: float) -> float:
     if not sorted_values:
         return 0.0
     position = (len(sorted_values) - 1) * fraction

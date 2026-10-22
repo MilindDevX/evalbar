@@ -1,0 +1,56 @@
+# Copy to .github/workflows/evalbar-gate.yml in your project.
+#
+# On every pull request that touches prompts or pipeline code, run the eval against a real
+# model and compare with the baseline run committed on main. The job fails when any scorer's
+# pass rate drops by more than 2 points or cost per case rises by more than 20%, and the
+# comparison table lands in the job summary.
+#
+# Setup:
+#   1. Commit a baseline: evalbar run evals/my_eval.py --out evals/baseline.json
+#   2. Add the provider key as a repository secret (Settings > Secrets and variables > Actions).
+#   3. Re-baseline deliberately when a change is accepted: rerun step 1 in the PR.
+#
+# Pull requests from forks do not receive secrets, so this job skips them.
+name: evalbar gate
+
+on:
+  pull_request:
+    paths:
+      - "prompts/**"
+      - "src/**"
+      - "evals/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evalbar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # Until evalbar 0.1.0 is on PyPI, install from GitHub: "evalbar @ git+https://github.com/MilindDevX/evalbar"
+      - run: python -m pip install evalbar -r requirements.txt
+      - name: Run eval
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: evalbar run evals/my_eval.py --out runs/head.json --quiet
+      - name: Compare with baseline
+        run: |
+          evalbar diff evals/baseline.json runs/head.json \
+            --fail-on-drop 0.02 --max-cost-increase 0.20 \
+            --format markdown >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evalbar-run
+          path: runs/head.json

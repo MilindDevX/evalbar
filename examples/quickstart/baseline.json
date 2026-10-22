@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "name": "capitals",
+  "started_at": "2026-10-22T16:56:19+00:00",
+  "finished_at": "2026-10-22T16:56:19+00:00",
+  "scorer_names": [
+    "exact:city",
+    "contains:answer",
+    "ends with a period"
+  ],
+  "metadata": {},
+  "environment": {
+    "python": "3.12.5",
+    "evalbar": "0.1.0.dev0",
+    "litellm": "1.106.2"
+  },
+  "cases": [
+    {
+      "case_id": "france",
+      "input": {
+        "country": "France"
+      },
+      "expected": {
+        "city": "Paris",
+        "answer": "Paris"
+      },
+      "metadata": {},
+      "output": {
+        "answer": "The capital of France is Paris.",
+        "city": "Paris"
+      },
+      "error": null,
+      "latency_s": 0.0897137499996461,
+      "trace": {
+        "llm_calls": [
+          {
+            "model": "gpt-4o-mini",
+            "prompt_tokens": 10,
+            "completion_tokens": 20,
+            "latency_s": 0.0896802080096677,
+            "cost_usd": 1.35e-05
+          }
+        ],
+        "tool_calls": [
+          {
+            "name": "lookup_capital",
+            "args": {
+              "country": "France"
+            },
+            "result": "Paris",
+            "latency_s": 8.33999365568161e-07,
+            "error": null
+          }
+        ]
+      },
+      "scores": [
+        {
+          "name": "exact:city",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "name": "contains:answer",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "name": "ends with a period",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "case_id": "japan",
+      "input": {
+        "country": "Japan"
+      },
+      "expected": {
+        "city": "Tokyo",
+        "answer": "Tokyo"
+      },
+      "metadata": {},
+      "output": {
+        "answer": "The capital of Japan is Tokyo.",
+        "city": "Tokyo"
+      },
+      "error": null,
+      "latency_s": 0.0006874590180814266,
+      "trace": {
+        "llm_calls": [
+          {
+            "model": "gpt-4o-mini",
+            "prompt_tokens": 10,
+            "completion_tokens": 20,
+            "latency_s": 0.000666000007186085,
+            "cost_usd": 1.35e-05
+          }
+        ],
+        "tool_calls": [
+          {
+            "name": "lookup_capital",
+            "args": {
+              "country": "Japan"
+            },
+            "result": "Tokyo",
+            "latency_s": 1.125037670135498e-06,
+            "error": null
+          }
+        ]
+      },
+      "scores": [
+        {
+          "name": "exact:city",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "name": "contains:answer",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "name": "ends with a period",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "case_id": "kenya",
+      "input": {
+        "country": "Kenya"
+      },
+      "expected": {
+        "city": "Nairobi",
+        "answer": "Nairobi"
+      },
+      "metadata": {},
+      "output": {
+        "answer": "The capital of Kenya is Nairobi.",
+        "city": "Nairobi"
+      },
+      "error": null,
+      "latency_s": 0.000782584014814347,
+      "trace": {
+        "llm_calls": [
+          {
+            "model": "gpt-4o-mini",
+            "prompt_tokens": 10,
+            "completion_tokens": 20,
+            "latency_s": 0.0007654579821974039,
+            "cost_usd": 1.35e-05
+          }
+        ],
+        "tool_calls": [
+          {
+            "name": "lookup_capital",
+            "args": {
+              "country": "Kenya"
+            },
+            "result": "Nairobi",
+            "latency_s": 6.25033862888813e-07,
+            "error": null
+          }
+        ]
+      },
+      "scores": [
+        {
+          "name": "exact:city",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "name": "contains:answer",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "name": "ends with a period",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        }
+      ]
+    },
+    {
+      "case_id": "atlantis",
+      "input": {
+        "country": "Atlantis"
+      },
+      "expected": {
+        "city": "Poseidonia",
+        "answer": "Poseidonia"
+      },
+      "metadata": {},
+      "output": {
+        "answer": "I don't know.",
+        "city": ""
+      },
+      "error": null,
+      "latency_s": 0.0005636669811792672,
+      "trace": {
+        "llm_calls": [
+          {
+            "model": "gpt-4o-mini",
+            "prompt_tokens": 10,
+            "completion_tokens": 20,
+            "latency_s": 0.000551584002096206,
+            "cost_usd": 1.35e-05
+          }
+        ],
+        "tool_calls": [
+          {
+            "name": "lookup_capital",
+            "args": {
+              "country": "Atlantis"
+            },
+            "result": null,
+            "latency_s": 5.830079317092896e-07,
+            "error": null
+          }
+        ]
+      },
+      "scores": [
+        {
+          "name": "exact:city",
+          "value": 0.0,
+          "passed": false,
+          "reason": "expected 'Poseidonia', got ''"
+        },
+        {
+          "name": "contains:answer",
+          "value": 0.0,
+          "passed": false,
+          "reason": "missing ['Poseidonia'] in \"I don't know.\""
+        },
+        {
+          "name": "ends with a period",
+          "value": 1.0,
+          "passed": true,
+          "reason": ""
+        }
+      ]
+    }
+  ]
+}

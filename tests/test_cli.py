@@ -81,3 +81,56 @@ def test_env_file_sets_missing_variables_only(tmp_path, monkeypatch):
     assert os.environ["EVALBAR_T_C"] == "shell"
     monkeypatch.delenv("EVALBAR_T_A")
     monkeypatch.delenv("EVALBAR_T_B")
+
+
+def _two_runs(tmp_path, base_answer="X", head_answer="nope"):
+    source = textwrap.dedent(
+        f"""
+        from evalbar import Eval, Case
+        from evalbar.scorers import exact
+
+        DATA = [
+            Case(id="a", input="x", expected={{"output": "X"}}, metadata={{}}),
+            Case(id="b", input="y", expected={{"output": "Y"}}, metadata={{}}),
+        ]
+
+        base = Eval(name="base", pipeline=str.upper, dataset=DATA, scorers=[exact()])
+        head = Eval(name="head", pipeline=lambda s: "{head_answer}" if s == "x" else s.upper(),
+                    dataset=DATA, scorers=[exact()])
+        """
+    )
+    path = write_eval(tmp_path, source)
+    main(["run", f"{path}:base", "--out", str(tmp_path / "base.json"), "--quiet"])
+    main(["run", f"{path}:head", "--out", str(tmp_path / "head.json"), "--quiet"])
+    return str(tmp_path / "base.json"), str(tmp_path / "head.json")
+
+
+def test_diff_exits_1_when_the_gate_fails(tmp_path, capsys):
+    base, head = _two_runs(tmp_path)
+    capsys.readouterr()
+
+    assert main(["diff", base, head, "--fail-on-drop", "0.1"]) == 1
+    captured = capsys.readouterr()
+    assert "exact" in captured.out and "a" in captured.out
+    assert "dropped 50.0 pts" in captured.err
+
+
+def test_diff_without_gate_or_with_a_passing_gate_exits_0(tmp_path, capsys):
+    base, head = _two_runs(tmp_path, head_answer="X")
+
+    assert main(["diff", base, head]) == 0
+    assert main(["diff", base, head, "--fail-on-drop", "0"]) == 0
+
+
+def test_diff_markdown_format(tmp_path, capsys):
+    base, head = _two_runs(tmp_path)
+    capsys.readouterr()
+
+    assert main(["diff", base, head, "--fail-on-drop", "0.1", "--format", "markdown"]) == 1
+    assert capsys.readouterr().out.startswith("### evalbar diff: base -> head")
+
+
+def test_diff_unknown_scorer_is_a_usage_error(tmp_path, capsys):
+    base, head = _two_runs(tmp_path)
+
+    assert main(["diff", base, head, "--fail-on-drop", "0", "--scorer", "nope"]) == 2

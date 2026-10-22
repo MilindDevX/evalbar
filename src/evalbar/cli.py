@@ -1,4 +1,4 @@
-"""Command line: `evalbar run file.py[:name]` and `evalbar show run.json`."""
+"""Command line: `evalbar run`, `evalbar show` and `evalbar diff`."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from .diff import check_gates, diff_renderable, diff_runs, render_markdown
 from .report import load_run, report_renderable, save_run
 from .runner import CaseResult, Eval, run
 
@@ -35,11 +36,25 @@ def main(argv: list[str] | None = None) -> int:
     show_cmd = commands.add_parser("show", help="print the report for a saved run file")
     show_cmd.add_argument("run_file")
 
+    diff_cmd = commands.add_parser("diff", help="compare two run files; exit 1 when a gate fails")
+    diff_cmd.add_argument("base", help="baseline run file (e.g. committed on main)")
+    diff_cmd.add_argument("head", help="new run file")
+    diff_cmd.add_argument("--fail-on-drop", type=float, metavar="FRACTION",
+                          help="fail when a scorer's pass rate drops by more than this (0.02 = 2 points)")
+    diff_cmd.add_argument("--scorer", action="append", metavar="NAME",
+                          help="only gate on this scorer (repeatable; default: all shared scorers)")
+    diff_cmd.add_argument("--max-cost-increase", type=float, metavar="FRACTION",
+                          help="fail when cost per case rises by more than this (0.2 = 20%%)")
+    diff_cmd.add_argument("--format", choices=["text", "markdown"], default="text",
+                          help="markdown suits $GITHUB_STEP_SUMMARY and PR comments")
+
     args = parser.parse_args(argv)
     console = Console()
     try:
         if args.command == "run":
             return _run(args, console)
+        if args.command == "diff":
+            return _diff(args, console)
         return _show(args, console)
     except UsageError as exc:
         print(f"evalbar: {exc}", file=sys.stderr)
@@ -74,6 +89,29 @@ def _show(args: argparse.Namespace, console: Console) -> int:
         raise UsageError(f"run file not found: {path}")
     console.print(report_renderable(load_run(path)))
     return 0
+
+
+def _diff(args: argparse.Namespace, console: Console) -> int:
+    runs = []
+    for run_file in (args.base, args.head):
+        path = Path(run_file)
+        if not path.is_file():
+            raise UsageError(f"run file not found: {path}")
+        runs.append(load_run(path))
+    diff = diff_runs(*runs)
+    try:
+        failures = check_gates(diff, fail_on_drop=args.fail_on_drop, scorers=args.scorer,
+                               max_cost_increase=args.max_cost_increase)
+    except ValueError as exc:
+        raise UsageError(str(exc)) from exc
+
+    if args.format == "markdown":
+        print(render_markdown(diff, failures), end="")
+    else:
+        console.print(diff_renderable(diff))
+    for failure in failures:
+        print(f"FAIL: {failure}", file=sys.stderr)
+    return 1 if failures else 0
 
 
 def load_env_file(path: str) -> None:
