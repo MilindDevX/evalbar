@@ -137,6 +137,8 @@ GitHub Actions:
 
 ## First real user: FeedbackOS's feedback classifier
 
+Full write-up with method, results and limits: [docs/case-study-feedbackos.md](docs/case-study-feedbackos.md).
+
 FeedbackOS (Milind's feedback-triage SaaS) classifies customer feedback into a theme (`bug_problem`, `feature_request`, `usability_issue`, `question_support`, `praise`, `other`), a sentiment and a product area with `openai/gpt-oss-120b` on Groq. On 2026-10-12 its prompt changed: v2 added `secondary_themes` (praise inside a complaint is kept) and a stricter "mixed" sentiment rule.
 
 [`examples/feedbackos/`](examples/feedbackos) reruns both prompt versions with the production settings:
