@@ -24,7 +24,7 @@ The change shipped on the strength of a small spot check. This study asks what i
 ## Method
 
 1. **Same call as production.** [`adapter.py`](../examples/feedbackos/adapter.py) is a Python port of FeedbackOS's `classifyFeedback`. It uses the same user prompt, model, temperature, 512-token limit, JSON mode and reasoning effort, plus the same short-text guard (feedback under 5 words skips the model) and the same product-area fallback.
-2. **Same prompts as production.** Both system prompts were copied word for word from FeedbackOS's git history: v1 at commit `9a896d9` (the last one before the change) and v2 at `59e4902` (the production prompt).
+2. **Same prompts as production.** Both system prompts were copied word for word from FeedbackOS's git history: v1 at commit `9a896d9` (the last one before the change) and v2 at `59e4902` (the production prompt until 2026-10-27).
 3. **A labelled test set.** [`cases.jsonl`](../examples/feedbackos/cases.jsonl) has 50 synthetic, hand-labelled cases: 8 bugs, 8 feature requests, 7 usability issues, 7 questions, 7 praise, 5 other, and 8 "mixed" cases that pair praise with a problem or request. Labels follow the v2 contract (the rules in the v2 prompt). No real user data is used.
 4. **Scorers** (checks that turn each output into pass/fail):
    - exact match on theme, sentiment and product area;
@@ -80,7 +80,7 @@ Two more misses are arguably label ambiguity rather than model errors:
 
 ### Follow-up: the fixes, measured
 
-Both fixes shipped as one FeedbackOS commit, `5515f8d` (on a branch, not yet in production). The short-text guard now uses the `Other` fallback, with a regression test that failed first. The prompt gains one boundary rule naming SOC 2 reports, security questionnaires and DPAs as administrative `other`. Results, v2 → v3 on the same 50 cases:
+Both fixes shipped as one FeedbackOS commit, `5515f8d`, live in production since 2026-10-27. The short-text guard now uses the `Other` fallback, with a regression test that failed first. The prompt gains one boundary rule naming SOC 2 reports, security questionnaires and DPAs as administrative `other`. Results, v2 → v3 on the same 50 cases:
 
 - `other-01` (SOC 2) and `other-05` (short text) are fixed; theme, product-area and theme+sentiment accuracy each go from 96% to 98%.
 - No case regressed, so `evalbar diff --fail-on-drop 0` passes.
@@ -107,6 +107,6 @@ Two runs used 96,591 tokens in 98 model calls. The list price was $0.017, and th
 
 ## Next steps
 
-1. ~~Fix the short-text guard's product area and the SOC 2 prompt gap.~~ Done in FeedbackOS `5515f8d`; see the follow-up above.
+1. ~~Fix the short-text guard's product area and the SOC 2 prompt gap.~~ Done in FeedbackOS `5515f8d`, in production since 2026-10-27; see the follow-up above.
 2. Add the evalbar gate to FeedbackOS's CI (template: [`examples/ci/evalbar-gate.yml`](../examples/ci/evalbar-gate.yml)), so prompt changes are measured before they ship rather than after.
 3. Repeat the comparison on a larger, independently labelled set of real public reviews to get numbers that say something about production.

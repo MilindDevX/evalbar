@@ -143,7 +143,7 @@ FeedbackOS (Milind's feedback-triage SaaS) classifies customer feedback into a t
 
 [`examples/feedbackos/`](examples/feedbackos) reruns both prompt versions with the production settings:
 
-- `prompts/v1.txt`, `prompts/v2.txt`: system prompts copied verbatim from FeedbackOS's git history (v1 = `9a896d9`, v2 = `59e4902`, the production prompt).
+- `prompts/v1.txt`, `prompts/v2.txt`: system prompts copied verbatim from FeedbackOS's git history (v1 = `9a896d9`, v2 = `59e4902`, the production prompt until 2026-10-27).
 - `adapter.py`: a Python port of `classifyFeedback` (same user prompt, model, `temperature=0`, 512 max tokens, JSON mode, `reasoning_effort="low"`, short-text guard, product-area fallback).
 - `cases.jsonl`: 50 synthetic, hand-labelled cases (8 bug, 8 feature request, 7 usability, 7 question, 7 praise, 5 other, 8 mixed praise+problem). No real user data.
 
@@ -182,9 +182,9 @@ What changed and what did not:
 
 ### Fixing what the eval found (v3)
 
-FeedbackOS commit `5515f8d` fixes both real misses: the short-text guard now uses the `Other` fallback, and the prompt gains one boundary rule ("Requests for compliance or procurement documents (SOC 2 reports, security questionnaires, DPAs) are administrative other, not question_support"). `prompts/v3.txt` is that prompt; the adapter replays the old guard for v1/v2 and the fixed one for v3. Measured 2026-10-26/27 on Groq, one run each:
+FeedbackOS commit `5515f8d` (in production since 2026-10-27) fixes both real misses: the short-text guard now uses the `Other` fallback, and the prompt gains one boundary rule ("Requests for compliance or procurement documents (SOC 2 reports, security questionnaires, DPAs) are administrative other, not question_support"). `prompts/v3.txt` is that prompt; the adapter replays the old guard for v1/v2 and the fixed one for v3. Measured 2026-10-26/27 on Groq, one run each:
 
-| metric | v2 (production) | v3 (fix) | change |
+| metric | v2 (before the fix) | v3 (fix, now in production) | change |
 |---|---|---|---|
 | theme accuracy (n=50) | 48/50 (96%) | **49/50 (98%)** | +2 pts, `other-01` fixed |
 | product-area accuracy (n=50) | 48/50 (96%) | **49/50 (98%)** | +2 pts, `other-05` fixed |
