@@ -1,7 +1,9 @@
-"""FeedbackOS classifier: prompt v1 (single theme) vs v2 (secondary themes + mixed sentiment).
+"""FeedbackOS classifier: prompt v1 (single theme) vs v2 (secondary themes + mixed sentiment)
+vs v3 (SOC 2 boundary rule + short-text Other fallback).
 
     evalbar run examples/feedbackos/eval.py:v1 --out runs/feedbackos-v1.json
     evalbar run examples/feedbackos/eval.py:v2 --out runs/feedbackos-v2.json
+    evalbar run examples/feedbackos/eval.py:v3 --out runs/feedbackos-v3.json
 
 Needs GROQ_API_KEY. Groq's free tier allows 8K tokens/minute for this model, so cases
 are spaced EVALBAR_MIN_INTERVAL seconds apart (default 9, the spacing FeedbackOS uses).
@@ -17,7 +19,6 @@ from evalbar import Eval, Score, Scorer, load_dataset
 from evalbar.scorers import contains, exact, json_schema, regex
 
 HERE = Path(__file__).parent
-DATASET = load_dataset(HERE / "cases.jsonl")
 MIN_INTERVAL_S = float(os.environ.get("EVALBAR_MIN_INTERVAL", "9"))
 
 
@@ -40,11 +41,13 @@ SCORERS = [
 ]
 
 
-def feedbackos_eval(version: str, source_commit: str) -> Eval:
+def feedbackos_eval(version: str, source_commit: str, dataset_file: str = "cases.jsonl",
+                    dataset_label: str = "50 synthetic") -> Eval:
+    suffix = "" if dataset_file == "cases.jsonl" else f"-{Path(dataset_file).stem}"
     return Eval(
-        name=f"feedbackos-{version}",
+        name=f"feedbackos-{version}{suffix}",
         pipeline=make_classifier(version),
-        dataset=DATASET,
+        dataset=load_dataset(HERE / dataset_file),
         scorers=SCORERS,
         min_interval_s=MIN_INTERVAL_S,
         metadata={
@@ -52,10 +55,17 @@ def feedbackos_eval(version: str, source_commit: str) -> Eval:
             "prompt_sha256": hashlib.sha256(system_prompt(version).encode()).hexdigest()[:12],
             "prompt_source": f"feedbackos@{source_commit}:lib/ai/prompts.ts",
             "model": MODEL,
-            "dataset": "examples/feedbackos/cases.jsonl (50 synthetic)",
+            "dataset": f"examples/feedbackos/{dataset_file} ({dataset_label})",
         },
     )
 
 
 v1 = feedbackos_eval("v1", "9a896d9")  # last commit before secondary themes (2026-10-11)
 v2 = feedbackos_eval("v2", "59e4902")  # production prompt as of 2026-10-16 (same since fe6596c)
+v3 = feedbackos_eval("v3", "5515f8d")  # SOC 2 rule + short-text Other fallback (2026-10-26)
+
+# Hold-out check for the v3 SOC 2 rule: 6 compliance requests that should be `other`
+# and 5 product questions/requests that mention compliance but must not become `other`.
+COMPLIANCE = ("compliance.jsonl", "11 compliance boundary cases")
+v2_compliance = feedbackos_eval("v2", "59e4902", *COMPLIANCE)
+v3_compliance = feedbackos_eval("v3", "5515f8d", *COMPLIANCE)

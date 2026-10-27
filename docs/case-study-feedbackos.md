@@ -78,6 +78,16 @@ Two more misses are arguably label ambiguity rather than model errors:
 - `feat-03`: webhooks, `API` or `Integrations`?
 - `mixed-03`: a broken "Remember me" box, `bug_problem` or `usability_issue`?
 
+### Follow-up: the fixes, measured
+
+Both fixes shipped as one FeedbackOS commit, `5515f8d` (on a branch, not yet in production). The short-text guard now uses the `Other` fallback, with a regression test that failed first. The prompt gains one boundary rule naming SOC 2 reports, security questionnaires and DPAs as administrative `other`. Results, v2 → v3 on the same 50 cases:
+
+- `other-01` (SOC 2) and `other-05` (short text) are fixed; theme, product-area and theme+sentiment accuracy each go from 96% to 98%.
+- No case regressed, so `evalbar diff --fail-on-drop 0` passes.
+- Cost per item rises 1% (the rule adds about 35 prompt tokens per call); latency is within noise.
+
+One fixed case cannot tell a real fix from a rule that only matches its own wording, so an 11-case hold-out set ([`compliance.jsonl`](../examples/feedbackos/compliance.jsonl)) checks both directions. Six compliance requests should be `other`; two of them come from FeedbackOS's own dev set, and one asks for an ISO 27001 certificate, which the rule never mentions. Five guard cases mention SOC 2, DPAs or questionnaires but are real product questions or requests, so the rule must not swallow them. v2 scores 9/11 and v3 scores 11/11: the SOC 2 Type II question and the ISO 27001 request flip to `other`, and every guard keeps its label.
+
 Running against real responses also exposed two bugs in evalbar itself before its first release:
 
 - **Cost lookup.** LiteLLM's `completion_cost()` cannot price Groq responses that name an OpenAI-style model. evalbar now uses the cost LiteLLM records during the call.
@@ -93,10 +103,10 @@ Neither would have shown up with mocked responses alone.
 
 ## Cost of the study
 
-Two runs used 96,591 tokens in 98 model calls. The list price was $0.017, and the actual spend on Groq's free tier was $0. Each run took about 8 minutes, mostly the deliberate spacing for the rate limit.
+Two runs used 96,591 tokens in 98 model calls. The list price was $0.017, and the actual spend on Groq's free tier was $0. Each run took about 8 minutes, mostly the deliberate spacing for the rate limit. The follow-up (one v3 run plus two hold-out runs) used another 78,193 tokens in 71 calls, $0.014 at list price.
 
 ## Next steps
 
-1. Fix the short-text guard's product area and add a worked SOC 2 example to the prompt. Rerun to confirm both cases flip without breaking others.
+1. ~~Fix the short-text guard's product area and the SOC 2 prompt gap.~~ Done in FeedbackOS `5515f8d`; see the follow-up above.
 2. Add the evalbar gate to FeedbackOS's CI (template: [`examples/ci/evalbar-gate.yml`](../examples/ci/evalbar-gate.yml)), so prompt changes are measured before they ship rather than after.
 3. Repeat the comparison on a larger, independently labelled set of real public reviews to get numbers that say something about production.

@@ -180,6 +180,32 @@ What changed and what did not:
   - `other-05`: "ok see attached" (under 5 words) skips the model and gets product area `Dashboard`, because FeedbackOS's short-text guard uses the first product area instead of the `Other` fallback. A real FeedbackOS bug, found by this eval.
   - `feat-03` (webhooks: `API` vs `Integrations`) and `mixed-03` (a broken "Remember me" box: `bug_problem` vs `usability_issue`) are arguably label ambiguity rather than model errors.
 
+### Fixing what the eval found (v3)
+
+FeedbackOS commit `5515f8d` fixes both real misses: the short-text guard now uses the `Other` fallback, and the prompt gains one boundary rule ("Requests for compliance or procurement documents (SOC 2 reports, security questionnaires, DPAs) are administrative other, not question_support"). `prompts/v3.txt` is that prompt; the adapter replays the old guard for v1/v2 and the fixed one for v3. Measured 2026-10-26/27 on Groq, one run each:
+
+| metric | v2 (production) | v3 (fix) | change |
+|---|---|---|---|
+| theme accuracy (n=50) | 48/50 (96%) | **49/50 (98%)** | +2 pts, `other-01` fixed |
+| product-area accuracy (n=50) | 48/50 (96%) | **49/50 (98%)** | +2 pts, `other-05` fixed |
+| theme and sentiment both right (n=50) | 48/50 (96%) | **49/50 (98%)** | +2 pts |
+| sentiment, praise kept, schema, summary length | 100% | 100% | 0 |
+| regressed cases | | **none** | `--fail-on-drop 0` passes |
+| tokens per case | 1,047 | 1,083 | +3% |
+| cost per 1,000 items (Groq list price) | $0.185 | $0.187 | +1% |
+| LLM latency p50 | 0.80s | 0.84s | within noise |
+
+One fixed case could be the rule overfitting to its own wording, so [`compliance.jsonl`](examples/feedbackos/compliance.jsonl) adds 11 hold-out cases: 6 compliance requests that should be `other` (two from FeedbackOS's own dev set, one naming ISO 27001, which the rule does not mention) and 5 guards that mention SOC 2, DPAs or questionnaires but are real product questions or requests. v2 gets 9/11 theme labels right, v3 gets **11/11**: it fixes the SOC 2 Type II question and the ISO 27001 request, and all 5 guards keep `question_support` / `feature_request`.
+
+```bash
+evalbar run examples/feedbackos/eval.py:v3 --out runs/feedbackos-v3.json
+evalbar diff runs/feedbackos-v2.json runs/feedbackos-v3.json --fail-on-drop 0
+evalbar run examples/feedbackos/eval.py:v2_compliance --out runs/feedbackos-v2-compliance.json
+evalbar run examples/feedbackos/eval.py:v3_compliance --out runs/feedbackos-v3-compliance.json
+```
+
+The hold-out cases are synthetic and labelled by the same author, so this shows the rule generalises past one sentence, not production accuracy.
+
 Caveats: 50 synthetic cases written by the evalbar author and labelled to the v2 contract, so one case is 2 points and these numbers say nothing about production accuracy. `praise kept` measures a field v1 cannot produce, so it shows the contract change, not v1 failing at its own job. Each prompt was run once; `gpt-oss-120b` at temperature 0 is not guaranteed deterministic.
 
 What the CLI prints for v2 (trimmed):

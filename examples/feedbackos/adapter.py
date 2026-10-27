@@ -28,6 +28,9 @@ COMPLETION_TOKENS = 512  # CLASSIFICATION_COMPLETION_TOKENS
 MAX_TEXT_CHARS = 8000  # MAX_CLASSIFICATION_TEXT_CHARS
 PRODUCT_AREAS = ["Dashboard", "Authentication", "API", "Billing", "Onboarding", "Integrations", "Other"]
 THEMES = ["bug_problem", "feature_request", "usability_issue", "question_support", "praise", "other"]
+# Prompt versions whose production code filed too-short feedback under the first listed
+# product area instead of the Other fallback (fixed in feedbackos@5515f8d).
+FIRST_AREA_GUARD_VERSIONS = {"v1", "v2"}
 
 # ClassificationOutputSchema (zod) as JSON Schema. secondary_themes is optional because the
 # zod schema defaults it to [] (v1 never emits it).
@@ -65,6 +68,11 @@ Classify this feedback accurately and completely.'''
 
 def make_classifier(version: str, product_areas: list[str] = PRODUCT_AREAS, max_rate_limit_retries: int = 4):
     prompt = system_prompt(version)
+    fallback = next((area for area in product_areas if "other" in area.lower()), None)
+    if version in FIRST_AREA_GUARD_VERSIONS:
+        short_text_area = product_areas[0] if product_areas else "Other"
+    else:
+        short_text_area = fallback or "Other"
 
     def classify(case_input: dict) -> dict:
         raw_text = case_input["text"]
@@ -74,7 +82,7 @@ def make_classifier(version: str, product_areas: list[str] = PRODUCT_AREAS, max_
                 "theme": "other",
                 "secondary_themes": [],
                 "sentiment": "neutral",
-                "product_area": product_areas[0] if product_areas else "Other",
+                "product_area": short_text_area,
                 "confidence": 0.3,
                 "summary": "Feedback too short to classify reliably",
                 "requires_human_review": True,
@@ -102,7 +110,6 @@ def make_classifier(version: str, product_areas: list[str] = PRODUCT_AREAS, max_
         output = json.loads(content)
         output.setdefault("secondary_themes", [])
 
-        fallback = next((area for area in product_areas if "other" in area.lower()), None)
         if output.get("product_area") == "Other" and fallback:
             output["product_area"] = fallback
         elif output.get("product_area") not in product_areas:

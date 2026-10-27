@@ -68,6 +68,15 @@ def test_short_feedback_skips_the_llm(mock_llm):
     assert output["requires_human_review"] is True and output["product_area"] == "Dashboard"
 
 
+def test_short_feedback_uses_the_other_fallback_from_v3(mock_llm):
+    _, sent = mock_llm
+
+    output = adapter.make_classifier("v3")({"text": "ok see attached"})
+
+    assert sent == []
+    assert output["product_area"] == "Other"
+
+
 def test_unknown_product_area_is_an_error_like_production(mock_llm):
     respond_with, _ = mock_llm
     respond_with(label(product_area="Mobile app"))
