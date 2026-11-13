@@ -12,3 +12,4 @@ build/
 runs/
 .DS_Store
 .claude/
+brain/
